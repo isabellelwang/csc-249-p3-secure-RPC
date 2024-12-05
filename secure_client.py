@@ -38,8 +38,9 @@ if not args.CA_public_key:
         # close the connection with the certificate authority
         s.sendall(bytes('done', 'utf-8'))
     print(f"Received public key {CA_public_key} from the certificate authority for verifying certificates")
+    CA_public_key = eval(CA_public_key)
 else:
-    CA_public_key = args.CA_public_key
+    CA_public_key = eval(args.CA_public_key)
 
 # Add an application-layer header to the message that the VPN can use to forward it
 def encode_message(message):
@@ -49,6 +50,7 @@ def encode_message(message):
 def TLS_handshake_client(connection, server_ip=SERVER_IP, server_port=SERVER_PORT):
     ## Instructions ##
     # Fill this function in with the TLS handshake:
+    #  * Request a TLS handshake from the server
     #  * Receive a signed certificate from the server
     #  * Verify the certificate with the certificate authority's public key
     #    * Use cryptography_simulator.verify_certificate()
@@ -62,37 +64,21 @@ def TLS_handshake_client(connection, server_ip=SERVER_IP, server_port=SERVER_POR
     #  * Return the symmetric key for use in further communications with the server
     # Make sure to use encode_message() on communications so the VPN knows which 
     # server to send them to
+    return 0
 
-  
-    print(f"Receiving signed certificate from the server")
-    signed_certificate = connection.recv(1024).decode('utf-8') #receive signed certificate from the server 
-    print(f"Verifying the signed certificate with the Certificate Authority's public key.")
-    unsigned_certificate = cryptgraphy_simulator.verify_certificate(CA_public_key, signed_certificate)
-    
-    print(f"Extracting and verifying server socket information")
-    SERVER_IP = unsigned_certificate[:unsigned_certificate.index('~IP~')]
-    SERVER_PORT = unsigned_certificate[unsigned_certificate.index('~IP~')+4:unsigned_certificate.index('~PORT~')]
-    server_public_key = unsigned_certificate[unsigned_certificate.index('~PORT~')+6:]
-
-    if SERVER_IP is server_ip and SERVER_PORT is server_port: 
-        print(f"Generating symmetric key for server")
-        encrypted_symmetric_key = encode_message(cryptgraphy_simulator.public_key_encrypt(server_public_key, MSG))
-        print(f"Sending encrypted symmetric key to the server")
-        connection.sendall(bytes(encrypted_symmetric_key), 'utf-8')
-
-
-    return encrypted_symmetric_key
-
-print("client starting - connecting to VPN at IP", VPN_IP, "and port", VPN_PORT)
+print("Client starting - connecting to VPN at IP", VPN_IP, "and port", VPN_PORT)
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((VPN_IP, VPN_PORT))
     symmetric_key = TLS_handshake_client(s)
-    MSG = encode_message(cryptgraphy_simulator.tls_encode(symmetric_key,MSG))
-    print(f"connection established, sending message '{MSG}'")
-    s.sendall(bytes(MSG, 'utf-8'))
-    print("message sent, waiting for reply")
+    print(f"TLS handshake complete: sent symmetric key '{symmetric_key}', waiting for acknowledgement")
     data = s.recv(1024).decode('utf-8')
+    print(f"Received acknowledgement '{cryptgraphy_simulator.symmetric_decrypt(symmetric_key, data)}', preparing to send message")
+    MSG = cryptgraphy_simulator.tls_encode(symmetric_key,MSG)
+    print(f"Sending message '{MSG}' to the server")
+    s.sendall(bytes(MSG, 'utf-8'))
+    print("Message sent, waiting for reply")
+    data = s.recv(1024)
 
 print(f"Received raw response: '{data}' [{len(data)} bytes]")
-print(f"Decoded message {cryptgraphy_simulator.tls_decode(data)} from server")
+print(f"Decoded message '{cryptgraphy_simulator.tls_decode(symmetric_key, data.decode('utf-8'))}' from server")
 print("client is done!")
