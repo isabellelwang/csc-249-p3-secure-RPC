@@ -64,21 +64,22 @@ def TLS_handshake_server(connection):
     #  * Receive an encrypted symmetric key from the client
     #  * Return the symmetric key for use in further communications with the client
 
-    #connection.bind(SERVER_IP, SERVER_PORT) 
-    #connection.listen()
-    #conn, addr = connection.accept()
+    # receive the handshake connection 
     handshake = connection.recv(1024).decode('utf-8')
     print(f"Received acknowledge: {handshake}")
     
     try: 
         if handshake is not None: 
-
+            
+            # send the signed certificate to the client
             print(f"Sending signed certificate {signed_certificate} to client")
             connection.sendall(bytes(signed_certificate, 'utf-8'))
 
+            # receive the symmetric key from the client and decode the message
             print(f"Receiving symmetric key from client")
             symmetric_key = connection.recv(1024).decode('utf-8') #receiving symmetric key from the client
-
+            
+            # decrypt the symmetric key using the server private key 
             print(f"Decrypting symmetric key {symmetric_key} using private key {private_key}")
             symmetric_key = cryptgraphy_simulator.private_key_decrypt(private_key, symmetric_key)
 

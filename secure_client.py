@@ -64,17 +64,21 @@ def TLS_handshake_client(connection, server_ip=SERVER_IP, server_port=SERVER_POR
     #  * Return the symmetric key for use in further communications with the server
     # Make sure to use encode_message() on communications so the VPN knows which 
     # server to send them to
+
+    # request a handshake from server 
     print("Requesting a TLS Handshake from server")
     handshake = encode_message(MSG)
     connection.sendall(bytes(handshake, 'utf-8'))
 
-    
+    # receive the signed certificate from server
     signed_certificate = connection.recv(1024).decode('utf-8') #receive signed certificate from the server 
     print(f"Receiving signed certificate {signed_certificate} from the server")
 
+    # verify the signed certificate using CA public key 
     verified_certificate = cryptgraphy_simulator.verify_certificate(CA_public_key, signed_certificate)
     print(f"Verifying the signed certificate with the Certificate Authority's public key: {verified_certificate}")
-    
+
+    # extract and verify the server socket information 
     SERVER_IP = verified_certificate[:verified_certificate.index('~IP~')]
     SERVER_PORT = verified_certificate[verified_certificate.index('~IP~')+4:verified_certificate.index('~PORT~')]
     server_public_key = verified_certificate[verified_certificate.index('~PORT~')+6:]
@@ -82,17 +86,18 @@ def TLS_handshake_client(connection, server_ip=SERVER_IP, server_port=SERVER_POR
 
     try: 
         if server_ip == SERVER_IP and str(server_port) == SERVER_PORT: 
+
+            # generate a symmetric key for the server 
             symmetric_key = cryptgraphy_simulator.generate_symmetric_key()
             print(f"Generating symmetric key for server: {symmetric_key}")
-    
+
+            # encrypt the symmetric key using server's public key
             encrypted_symmetric_key = cryptgraphy_simulator.public_key_encrypt(server_public_key, symmetric_key)
             print(f"encrypted symmetric key using server public key {server_public_key}: {encrypted_symmetric_key}")
 
-        
+            # send encrypted symmetric key to the server 
             sending_key = encrypted_symmetric_key
-            print(f"Sending encrypted symmetric key {sending_key} to the server")
-
-
+            print(f"Sending encrypted symmetric key {sending_key} to the server") #send to the server
             connection.sendall(bytes(sending_key, 'utf-8'))
         
         return symmetric_key
