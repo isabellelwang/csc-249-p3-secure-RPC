@@ -1,67 +1,142 @@
-# CSC 249 – Project 3 – Secure RPC
+###  Overview of Application 
 
-For this project, you'll be buidling upon your previous projects, this time buiding a (simulated) secure client and server, still communicating through a VPN.
+The program simulates the process how data is sent in a secure manner through encryption and decryption using keys and VPN through a TlS Handshake. There are four components: The certificate authority, the client, the VPN, and the server. 
+The certificate authority provides the public key for the client to be used for verification on the server. It also signs the certificate sent by the server to ensure that it is the server that is communicating with the client. The VPN acts as a secure middleground between the client and server and adds a layer of security and privacy for the client and server when data is being sent. Symmetric keys are generated, which is a nonce, and is sent to the server from the client. The server sends back an acknowledgement of the nonce. Then the message is sent to the server, which is decoded and processed by the server. 
 
-I’ve placed some starter code in this Git repo [https://github.com/abpw/csc-249-p3-secure-RPC], which you are welcome to clone. Your job will be to fill in the "TLS_handshake_client()" function in "secure_client.py" and the "TLS_handshake_server()" function in "secure_server.py", and, optionally, the "process_message()" function in "secure_server.py()". There are detailed instructions in the comments, and you'll make heavy use of the simulated cryptographic primitives in "cryptography_simulator.py" as well as the certificate authority provided in "certificate_authority.py".
 
-Like last time, by default, the server, VPN server, client, and certificate authority are configured to run on compatible sockets, but if you'd like to change any ip addresses or ports you can use command line arguments to do so. To use secure_server.py's command line arguments, for example, you can run "python3 secure_server.py --help" from command line in the directory the secure_server.py file is stored.
+### Format of an unsigned certificate
+This is the general format.
+unsigned_certificate = str(SERVER_IP) + '~IP~' + str(SERVER_PORT) + '~PORT~' + str(public_key)
 
-Note that all four files must be stored in the same direcory as "arguments.py" to run correctly, and the certificate authority should be started before the secure server, and the secure client should be run last.
+In my program, the format is 
+127.0.0.1~IP~65432~port~Hello, world -> "SERVERIP"+ + ~IP~ + "PORTNUMBER" + ~port~ + "MSG"
 
-Although "echo-server.py" is included as a test server, your client and VPN should be able to interact with any server with any functionality that follows this type of protocol:
+ServerIP = 127.0.0.1
+Port = 65432
+MSG = Hello, world
 
-* Take as input over a socket a message of up to 1000 bytes in a particular format
-* Return to the sender along the same TCP connection a message of up to 1000 bytes (possibly an error message)
 
-## Design Requirements
+### Example output 
 
-Your secure client and secure server should be, well, secure. As the "man in the middle", your VPN should not be able to read any sensitive communications between the secure client and the secure server unless those communications are properly simulated secure. Make sure that 
+Note: The message underwent processing by the server
+# Certificate Authority 
+python3 certificate_authority.py
+Certificate Authority started using public key '(22081, 56533)' and private key '34452'
+Certificate authority starting - listening for connections at IP 127.0.0.1 and port 55553
+Connected established with ('127.0.0.1', 50000)
+Received client message: 'b'$127.0.0.1~IP~65432~PORT~(36207, 56533)'' [39 bytes]
+Signing '127.0.0.1~IP~65432~PORT~(36207, 56533)' and returning it to the client.
+Received client message: 'b'done'' [4 bytes]
+('127.0.0.1', 50000) has closed the remote connection - listening 
+Connected established with ('127.0.0.1', 50005)
+Received client message: 'b'key'' [3 bytes]
+Sending the certificate authority's public key (22081, 56533) to the client
+Received client message: 'b'done'' [4 bytes]
+('127.0.0.1', 50005) has closed the remote connection - listening 
+^CCertificate authority is done!
 
-* Your client must obtain the desired message to be sent through the VPN from the terminal command line. This functionality is already provided in the client.py file.
-* As they run, the client and the VPN applications must generate tracing messages that document significant program milestones, e.g., when connections are made, when messages and sent and received, and what was sent and what was received. (Good examples of tracing messages can be found in the sample code provided.)
-* The client and server should be designed to anticipate and gracefully handle reasonable errors which could occur at either end of the communication channel. For example, the client should attempt to prevent malformed requests to the server, and the server should avoid crashing if it receives a malformed request. Remember, in the real world there is no guarantee that your server will only have to deal with communications from your (presumably friendly) client!
-* Source code of your client and server must be appropriately documented. Comments should be sufficient to allow a third party to understand your code, run it, and confirm that it works.
+Note: The message underwent processing by the server
+# VPN
+python3 VPN.py
+VPN starting - listening for connections at IP 127.0.0.1 and port 55554
+Connected established with ('127.0.0.1', 50006)
+Received client message: 'b'127.0.0.1~IP~65432~port~Hello, world'' [36 bytes]
+connecting to server at IP 127.0.0.1 and port 65432
+server connection established, sending message 'Hello, world'
+message sent to server, waiting for reply
+Received server response: 'b'D_(34452, 56533)[127.0.0.1~IP~65432~PORT~(36207, 56533)]'' [56 bytes], forwarding to client
+Received client message: 'b'E_(36207, 56533)[10908]'' [23 bytes], forwarding to server
+Received server response: 'b"symmetric_10908[Symmetric key '10908' received]"' [47 bytes], forwarding to client
+Received client message: 'b'HMAC_47085[symmetric_10908[Hello, world]]'' [41 bytes], forwarding to server
+Received server response: 'b'HMAC_36529[symmetric_10908[Hello, world has 12 characters.]]'' [60 bytes], forwarding to client
+VPN is done!
 
-## Deliverables
+Note: The message underwent processing by the server
+# Server
+python3 secure_server.py
+Generated public key '(36207, 56533)' and private key '20326'
+Connecting to the certificate authority at IP 127.0.0.1 and port 55553
+Prepared the formatted unsigned certificate '127.0.0.1~IP~65432~PORT~(36207, 56533)'
+Connection established, sending certificate '127.0.0.1~IP~65432~PORT~(36207, 56533)' to the certificate authority to be signed
+Received signed certificate 'D_(34452, 56533)[127.0.0.1~IP~65432~PORT~(36207, 56533)]' from the certificate authority
+server starting - listening for connections at IP 127.0.0.1 and port 65432
+Connected established with ('127.0.0.1', 50007)
+Received acknowledge: Hello, world
+Sending signed certificate D_(34452, 56533)[127.0.0.1~IP~65432~PORT~(36207, 56533)] to client
+Receiving symmetric key from client
+Decrypting symmetric key E_(36207, 56533)[10908] using private key 20326
+TLS handshake complete: established symmetric key '10908', acknowledging to client
+Received client message: 'b'HMAC_47085[symmetric_10908[Hello, world]]'' [41 bytes]
+Decoded message 'Hello, world' from client
+Responding 'Hello, world has 12 characters.' to the client
+Sending encoded response 'HMAC_36529[symmetric_10908[Hello, world has 12 characters.]]' back to the client
+server is done!
 
-Your work on this project must be submitted for grading by **Monday, December 2nd at 11:59PM**. Extensions may be obtained by sending me a message on Slack before the original due date.
+Note: The message underwent processing by the server
+# Client 
+python3 secure_client.py
+Connecting to the certificate authority at IP 127.0.0.1 and port 55553
+Connection established, requesting public key
+Received public key (22081, 56533) from the certificate authority for verifying certificates
+Client starting - connecting to VPN at IP 127.0.0.1 and port 55554
+Requesting a TLS Handshake from server
+Receiving signed certificate D_(34452, 56533)[127.0.0.1~IP~65432~PORT~(36207, 56533)] from the server
+Verifying the signed certificate with the Certificate Authority's public key: 127.0.0.1~IP~65432~PORT~(36207, 56533)
+Extracting and verifying server socket information: IP - 127.0.0.1, Port: 65432, public key: (36207, 56533)
+Generating symmetric key for server: 10908
+encrypted symmetric key using server public key (36207, 56533): E_(36207, 56533)[10908]
+Sending encrypted symmetric key E_(36207, 56533)[10908] to the server
+TLS handshake complete: sent symmetric key '10908', waiting for acknowledgement
+Received acknowledgement 'Symmetric key '10908' received', preparing to send message
+Sending message 'HMAC_47085[symmetric_10908[Hello, world]]' to the server
+Message sent, waiting for reply
+Received raw response: 'b'HMAC_36529[symmetric_10908[Hello, world has 12 characters.]]'' [60 bytes]
+Decoded message 'Hello, world has 12 characters.' from server
+client is done!
 
-All work must be submitted in Gradescope.
+### Walkthrough of TLS Handshake 
 
-You must submit these work products:
+First, the client requests a public key from the certificate authority, which the certificate authority sends back its Certificate Authority Public Key to be used for verification later by the client. 
 
-1. Source code for your secure client and secure server.
-2. A **text** (.txt or .md) document with a written description of your client-VPN message format (that is, a description of all implemented client and VPN messages, and how the various components of each message are represented). Your goal in writing this document should be to convey enough information in enough detail to allow a competent programmer **without access to your source code** to write either a new secure client that communicates properly with your secure server, or a new secure server that communicates properly with your client. This document should include at least **six** sections:
-    1. Overview of Application
-    2. Format of an unsigned certificate
-    3. Example output
-    4. **A walkthorough of the steps of a TLS handshake, and what each step accomplishes**
-        * For example, one step will be: "The client encrypts the generated symmetric key before sending it to the server. If it doesn't, the VPN will be able to read the symmetric key in transit and use it to decrypt further secure communications between the client and server encrypted and HMAC'd with that key."
-    5. A description of two ways in which our simulation fails to achieve real security, and how these failures might be exploited by a malicious party. This is one place you can earn extra credit by discussing some less-obvious exploits. Some options for discussion are:
-        * The asymmetric key generation scheme
-        * The encryption/decryption/HMAC/verification algorithms
-        * The certificate authority's public key distribution system
-        * The use of python's "eval()" function
-    6. Acknowledgements
-    7. (Optional) Client->Server and Server->Client application layer message format if you decide to change "process_message()" in "secure_server.py". This can be another source of extra credit if you're creative with your application.
-3. Command-line traces showing the secure client, VPN, secure server, and certificate authority in operation.
+The client sends the serverIP + serverPort + message to the VPN, which the VPN extracts the message and forwards the message to the server. 
 
-## Teamwork Policy
+The server then sends an unsigned certificate, which contains server's socket information and public key, to the certificate authority for the certificate authority to sign. The server forwards the signed certificate to the VPN and then to the client. The client receives the signed certificate and verifies the certificate with the certificate authority using the certificate authority public key. This is to ensure that the server the client is communicating with is not an imposter server. 
 
-**For this project, all work must be submitted individually – no team submissions will be allowed**. You are free to collaborate and exchange ideas, but each student must submit their own original work. To the extent you obtain ideas and feedback from other students, you should give them proper credit in the Acknowledgments section of your specification document. For example, "Jane Austen helped me think through the different messages that my ATM server might need to be able to handle", "Sophia Smith helped me understand the purpose of the htons() function". **You should not use the Acknowledgments section to acknowledge help from the course instructor or teaching assistant.** The purpose of the section is to allow students to give appropriate credit for any peer assistance in conceiving and completing individual assignments.
+After verifying, the unsigned certificate is sent back to the client, who extracts the server's socket information and the server's public key and verifies again that it is the correct server IP and port. If it is correct, then it generates a symmetric key, which is a nonce, or a random number. The symmetric key is encrypted using the server's public key, and then sent to the VPN and the server. 
 
-## Grading Rubric
+The server decrypts the encrypted symmetric key using its private key, and then sends the symmetric key back to the client as acknowledgement. 
 
-Your work on this project will be graded on a five-point scale. Fractional points and extra credit may be awarded.
+Then, the client will begin to send its message with an HMAC to the server, which decrypts it and processes the message. 
 
-_0 pts:_ No deliverables were received by the due date or requested extension date.
+### Description of how simulation is weak 
 
-_1 pt:_ Incomplete deliverables were received by the due date or extension date.
+The simulation is weak due to its asymmetric key generation process and using the built-in python function, eval(). 
 
-_2 pts:_ Required deliverables were received but are deficient in various ways (e.g., incomplete documentation, code doesn’t run)
+In the cryptography simulator, the asymmetric key is generated between 0 and 56533, which is not a very secure key. Since larger keys are more secure, asymmetric key in the simulation would be easy to intercept. In addition, the generation of the private key is very simple. It is a subtraction equation by subtracting the first index of the public key from 56533. Private keys should not be easy to guess/crack, because it should not be known to anyone. 
 
-_3 pts:_ Complete and adequate deliverables. Code runs but is deficient in various ways.
+The eval() function is also weak, because it is not secure. Because eval() is a built-in function by python, it could be easily breached. And especially inputting the symmetric key to be evaluated, it is valuable information that when breached, could break the security of the system.  
 
-_4 pts:_ Code runs and does most but not all of what is required.
+### Acknowledgements 
+Thank you to Emily, Quinn, and Chris for answering my questions. 
 
-_5 pts:_ Nailed it. Complete deliverables, code runs and does what is required.
+### Client->Server and Server->Client application layer message format
+
+# Client to server Message format: 
+The message format is HMAC_47085[symmetric_10908[Hello, world]]
+
+HMAC_(HMAC_key)[symmetric_{sym_key} [message]]
+
+HMAC_key = 47085
+sym_key = 10908 
+message = Hello, world 
+
+# Server to client Message format: 
+HMAC_36529[symmetric_10908[Hello, world has 12 characters.]]
+
+HMAC_{hmac_key}[symmetric_{sym_key}[processed_message]]
+hmac_key = 26529
+sym_key = 10908
+processed_message = Hello, world has 12 characters.
+
+
+

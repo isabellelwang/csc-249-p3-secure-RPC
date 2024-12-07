@@ -64,8 +64,44 @@ def TLS_handshake_client(connection, server_ip=SERVER_IP, server_port=SERVER_POR
     #  * Return the symmetric key for use in further communications with the server
     # Make sure to use encode_message() on communications so the VPN knows which 
     # server to send them to
-    return 0
+    print("Requesting a TLS Handshake from server")
+    handshake = encode_message(MSG)
+    connection.sendall(bytes(handshake, 'utf-8'))
 
+    
+    signed_certificate = connection.recv(1024).decode('utf-8') #receive signed certificate from the server 
+    print(f"Receiving signed certificate {signed_certificate} from the server")
+
+    verified_certificate = cryptgraphy_simulator.verify_certificate(CA_public_key, signed_certificate)
+    print(f"Verifying the signed certificate with the Certificate Authority's public key: {verified_certificate}")
+    
+    SERVER_IP = verified_certificate[:verified_certificate.index('~IP~')]
+    SERVER_PORT = verified_certificate[verified_certificate.index('~IP~')+4:verified_certificate.index('~PORT~')]
+    server_public_key = verified_certificate[verified_certificate.index('~PORT~')+6:]
+    print(f"Extracting and verifying server socket information: IP - {SERVER_IP}, Port: {SERVER_PORT}, public key: {server_public_key}")
+
+    try: 
+        if server_ip == SERVER_IP and str(server_port) == SERVER_PORT: 
+            symmetric_key = cryptgraphy_simulator.generate_symmetric_key()
+            print(f"Generating symmetric key for server: {symmetric_key}")
+    
+            encrypted_symmetric_key = cryptgraphy_simulator.public_key_encrypt(server_public_key, symmetric_key)
+            print(f"encrypted symmetric key using server public key {server_public_key}: {encrypted_symmetric_key}")
+
+        
+            sending_key = encrypted_symmetric_key
+            print(f"Sending encrypted symmetric key {sending_key} to the server")
+
+
+            connection.sendall(bytes(sending_key, 'utf-8'))
+        
+        return symmetric_key
+        
+    except Exception as e: 
+        print(f"Exception Occured {e}")
+        return 
+    
+    
 print("Client starting - connecting to VPN at IP", VPN_IP, "and port", VPN_PORT)
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((VPN_IP, VPN_PORT))

@@ -63,11 +63,39 @@ def TLS_handshake_server(connection):
     #    * A signed certificate variable should be available as 'signed_certificate'
     #  * Receive an encrypted symmetric key from the client
     #  * Return the symmetric key for use in further communications with the client
-    return 0
+
+    #connection.bind(SERVER_IP, SERVER_PORT) 
+    #connection.listen()
+    #conn, addr = connection.accept()
+    handshake = connection.recv(1024).decode('utf-8')
+    print(f"Received acknowledge: {handshake}")
+    
+    try: 
+        if handshake is not None: 
+
+            print(f"Sending signed certificate {signed_certificate} to client")
+            connection.sendall(bytes(signed_certificate, 'utf-8'))
+
+            print(f"Receiving symmetric key from client")
+            symmetric_key = connection.recv(1024).decode('utf-8') #receiving symmetric key from the client
+
+            print(f"Decrypting symmetric key {symmetric_key} using private key {private_key}")
+            symmetric_key = cryptgraphy_simulator.private_key_decrypt(private_key, symmetric_key)
+
+            return symmetric_key 
+    except Exception as e: 
+        print(f"Exception occured {e}")
+        return 
+
+
 
 def process_message(message):
     # Change this function to change the service your server provides
     # Right now, this is an echo server, which is fine, but a bit dull
+
+    # Sends back the number of characters in the message
+    message = message + " has " + str(len(message)) + " characters."
+   
     return message
 
 print("server starting - listening for connections at IP", SERVER_IP, "and port", SERVER_PORT)
@@ -92,5 +120,4 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             encoded_response = cryptgraphy_simulator.tls_encode(symmetric_key, response)
             print(f"Sending encoded response '{encoded_response}' back to the client")
             conn.sendall(bytes(encoded_response, 'utf-8'))
-
 print("server is done!")

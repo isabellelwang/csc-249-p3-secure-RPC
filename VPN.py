@@ -51,5 +51,4 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
                 print(f"Received client message: '{data!r}' [{len(data)} bytes], forwarding to server")
                 server_socket.sendall(data)
 
-
 print("VPN is done!")
